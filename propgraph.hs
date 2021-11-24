@@ -380,22 +380,50 @@ getELabel (PG v ((e,l,prop,v1,v2):es) p) e1
 ------------------------------------------------------------------
 
 doAction :: PG -> String -> IO()
-doAction pg "1" = do
-    showGraph pg
-    return ()
+doAction _ "0" = return ()
 
-doAction pg _ = return ()
+doAction pg "1" = do
+    putStrLn "Escriu el vèrtex o la aresta de la qual vols saber les propietats:"
+    vertexEdge <- getLine    
+    let sigmaPrima = sigma' pg vertexEdge
+    showGraph pg
+    putStrLn " "
+    putStrLn ("Les propietats del element "++vertexEdge++" son:")
+    print sigmaPrima
+    putStrLn " "
+    loop pg
+
+doAction pg "2" = do
+    putStrLn "Escriu quants elements vols:"
+    nat <- getLine
+    let k = read nat :: Int
+    putStrLn "Escriu la propietat:"
+    prop <- getLine
+    showGraph pg
+    putStrLn " "
+    putStrLn ("Els vertex que compleixen la propietat son:")
+    let proV = propV pg k prop
+    print proV
+    putStrLn " "
+    loop pg
+
+doAction _ "3" = return ()
+
+doAction _ "4" = return ()
+
+doAction _ _ = return ()
 
 loop :: PG -> IO()
 loop pg = do
     putStrLn "Que vols fer?"
-    putStrLn "1. Mostra el Graph"
-    putStrLn "2. Funció sigma prima"
-    putStrLn "3. Propietats Vertex"
+    putStrLn "1. σ'"
+    putStrLn "2. propV"
+    putStrLn "3. propE"
+    putStrLn "4. kHops"
+    putStrLn "5. reachable"
     putStrLn "0. Sortir del programa"
     action <- getLine
     doAction pg action
-    showGraph pg
     return ()
 
 
@@ -417,7 +445,6 @@ main = do
     sgm <- readFile nomSigma
     prop <- readFile nomProp
     let pg = populate rho lmd sgm prop  
-    showGraph pg
     loop pg
     return ()
     
