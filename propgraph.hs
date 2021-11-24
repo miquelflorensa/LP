@@ -368,14 +368,26 @@ getELabel (PG v ((e,l,prop,v1,v2):es) p) e1
 
 ------------------------------------------------------------------
 
+
 main = do
-    --putstrl Demana el nom dels fixers a introduir. A FER
-    --nomRho <- getline
-    rho <- readFile "rhoFile.pg"
-    lmd <- readFile "lambdaFile.pg"
-    sgm <- readFile "sigmaFile.pg"
-    prop <- readFile "propFile.pg"
-    let pg = populate rho lmd sgm prop
+    putStrLn "Quin és el nom del fitxer Rho?"
+    nomRho <- getLine
+    putStrLn "Quin és el nom del fitxer Lambda?"
+    nomLambda <- getLine
+    putStrLn "Quin és el nom del fitxer Sigma?"
+    nomSigma <- getLine
+    putStrLn "Quin és el nom del fitxer Prop?"
+    nomProp <- getLine
+    rho <- readFile nomRho
+    lmd <- readFile nomLambda
+    sgm <- readFile nomSigma
+    prop <- readFile nomProp
+    let pg = populate rho lmd sgm prop   
+    putStrLn "Que vols fer?"
+    putStrLn "0. Mostra el Graph"
+    putStrLn "1. Funció sigma prima"
+    putStrLn "2. Propietats Vertex"
+    action <- getLine
     showGraph pg
     --let khops = kHops pg 3 "n3" "lastName" (Val == Val) "Blanco"
     let reach = reachable pg "n1" "n2" "has"
