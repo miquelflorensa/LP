@@ -1,7 +1,18 @@
+{--
+Miquel Florensa Montilla
+miquel.florensa@estudiantat.upc.edu
+Grup 21 
+
+--------------- QUERYING SMALL PROPERTY GRAPHS -------------------
+--}
+
 type Date = String
 
 data Val = ValI Int | ValD Double | ValS String | ValB Bool | ValDa Date
     deriving (Eq)
+
+
+-- Defineixo els Valors amb un Date i tots els possibles tipus de dades
 
 type Vertex = String
 type Edge = String
@@ -10,14 +21,17 @@ type Property = String
 type VertexVal = (Vertex,Val)
 type Prop = (Property,Val)
 
+-- VERTICES
 -- NameVertex, Label, List of properties, list of adjacent vertex
 type Vertices = (Vertex,Label,[Prop],[(Vertex,Edge)])
 
+-- EDGES
 -- NameEdge, Label, List of properties, vertex 1, vertex 2
 -- the direction of the edge is vertex 1 -> vertex 2
 type Edges = (Edge,Label,[Prop],Vertex,Vertex)
 type TypeProperty = (String,String)
 
+-- Instancio cada Value amb el seu show
 instance Show Val where
     show (ValI value) = show value
     show (ValD value) = show value
@@ -25,24 +39,24 @@ instance Show Val where
     show (ValB value) = show value
     show (ValDa value) = show value
 
-
+-- El grapg té una llista de vertices una de edges i una de TypeProperty
 data PG = PG [Vertices] [Edges] [TypeProperty]
-    deriving (Show)
-{--
-instance Show PG where
-    show (PG [] e p) = []
-    show (PG ((v,l,prop,a):xs) e p) = show v ++ show (PG xs e p)
-    --}
+
+-- La llista de TypeProperty contindrà totes les propietats i el seu corresponent tipus
+
 create :: PG
 create = PG [] [] []
 
 -------------------------- EDGES ---------------------------------
+
+-- Retorna True si existeix un vèrtex en una llista de vèrtex
 existsVertex :: [Vertices] -> Vertex -> Bool
 existsVertex [] v1 = False
 existsVertex ((v,l,prop,a):xs) v1 
     | v == v1 = True
     | otherwise = existsVertex xs v1
 
+-- Conjunt de funcions que permeten crear edges 
 addVertices :: Vertices -> Vertex -> Vertex -> Edge -> Vertices
 addVertices (v,l,prop,a) v1 v2 e
     | v == v1 = (v,l,prop,a ++ [(v2,e)])
@@ -68,11 +82,11 @@ addEdge (PG v e p) e1 v1 v2
         e' = e ++ [(e1,[],[],v1,v2)]
         v' = map (\y -> addVertices y v2 [] []) (map (\x -> addVertices x v1 v2 e1) v)
 
-
 ------------------------------------------------------------------
-
 -------------------------- VALUES --------------------------------
 
+{-- Conjunt de funcions que permeten omplir la tercera llista del graf
+    és a dir, aquella que conté els noms de les propietats i el seu tipus --}
 createValues :: PG -> [String] -> PG
 createValues pg (x:y:ys) = addValue pg x y
 
@@ -82,10 +96,12 @@ addValues pg (x:xs) = addValues (createValues pg (words x)) xs
 
 addValue :: PG -> String -> String -> PG
 addValue (PG v e p) prop typeProp = PG v e (p ++ [(prop,typeProp)])
-------------------------------------------------------------------
 
+------------------------------------------------------------------
 ------------------------ PROPERTIES ------------------------------
 
+{-- Conjunt de funcions que permeten afegir propietats, modificar-les,
+    treure'n informació etc.. --}
 getVProps :: [Vertices] -> Vertex -> [Prop]
 getVProps [] _ = []
 getVProps ((v,l,prop,a):xs) v1
@@ -156,6 +172,10 @@ addProps :: PG -> [String] -> PG
 addProps pg [] = pg
 addProps pg (x:xs) = addProps (createProp pg (words x)) xs
 
+{-- Si un vèrtex ja té una propietat no se li pot sobrescriure,
+    en cas que s'intenti fer, retorno un erro amb el missatge,
+    he pensat que així podia quedar bé, i ho he repetit en altres funcions.
+--}
 addVProp :: Vertices -> Vertex -> [Prop] -> Vertices
 addVProp (v,l,prop,a) v1 x 
     | v == v1 && existsProp prop x = error "this vertex has already the property"
@@ -175,10 +195,11 @@ addEProp (e,l,prop,v1,v2) e1 x
 defEProp :: PG -> Edge -> [Prop] -> PG
 defEProp (PG v e p) e1 prop = PG v e' p where
     e' = map (\x -> addEProp x e1 prop) e
-------------------------------------------------------------------
 
+------------------------------------------------------------------
 -------------------------- LABELS --------------------------------
 
+-- Funcions per al populate
 createLabels :: PG -> [String] -> PG
 createLabels (PG v e p) (x:y:ys)
     |  existsVertex v x == True = defVLabel (PG v e p) x y
@@ -188,7 +209,8 @@ addLabels :: PG -> [String] -> PG
 addLabels pg [] = pg
 addLabels pg (x:xs) = addLabels (createLabels pg (words x)) xs
 
--- Vertex Labels 
+-- Vertex Labels
+-- Funcions que permeten definir les etiquetes en vèrtex 
 existsVLabel :: [Vertices] -> Vertex -> Bool
 existsVLabel [] v1 = False
 existsVLabel ((v,l,prop,a):xs) v1
@@ -209,6 +231,8 @@ defVLabel (PG v e p) v1 l
         v' = map (\x -> addVLabel x v1 l) v
 
 -- Edges Labels
+-- Funcions que permeten definir les etiquetes en arestes
+
 existsEdge :: [Edges] -> Edge -> Bool
 existsEdge [] e1 = False
 existsEdge ((e,l,prop,v1,v2):xs) e1 
@@ -233,9 +257,17 @@ defELabel (PG v e p) e1 l
     | otherwise = PG v e' p
     where 
         e' = map (\x -> addELabel x e1 l) e
-------------------------------------------------------------------
 
+------------------------------------------------------------------
 ------------------------ SHOW GRAPH ------------------------------
+
+{-- 
+Per poder printar el graf, el que faig és anar iterant sobre tots
+els seus vèrtex i arestes i anar printant-los amb el seu corresponent
+format. Converteixo tots els elments (incluides les propietats) a Strings
+per tal de poder printar-ho tot junt. A més elimino cometes que es posen
+en les strings.
+--}
 
 prop2String :: [Prop] -> String
 prop2String [] = []
@@ -272,19 +304,24 @@ populate rho lmd sgm prop = pg
     props = addProps values (lines sgm) 
     values = addValues edg (lines prop)
     edg = addEdges (create) (lines rho)
+
 ------------------------------------------------------------------
 
 -------------- QUERING AGAINST PROPERTY GRAPHS -------------------
 
------------------------------- 1 ---------------------------------
+-------------------------------- σ' ------------------------------
+
+-- Retorna totes les propietats d'un vèrtex o aresta
 sigma' :: PG -> String -> [Prop]
 sigma' (PG [] [] _) _ = []
 sigma' (PG v e _) s
     | existsVertex v s = getVProps v s
     | otherwise = getEProps e s
-------------------------------------------------------------------
 
------------------------------- 2 ---------------------------------
+------------------------------------------------------------------
+------------------------------ propV -----------------------------
+
+-- Retorna els k primers vèrtex que contenen la propietat p
 propV :: PG -> Int -> Property -> [(Vertex,Val)]
 propV _ 0 _ = []
 propV (PG [] _ _) _ _ = []
@@ -293,9 +330,11 @@ propV (PG ((v,l,prop,a):xs) e p) k proper
     | otherwise = propV (PG xs e p) k proper
     where
         x = propV (PG xs e p) (k-1) proper
-------------------------------------------------------------------
 
------------------------------- 3 ---------------------------------
+------------------------------------------------------------------
+------------------------------ propE -----------------------------
+
+-- Retorna les k primeres arestes que contenen la propietat p
 propE :: PG -> Int -> Property -> [(Edge,Val)]
 propE _ 0 _ = []
 propE (PG _ [] _) _ _ = []
@@ -304,12 +343,13 @@ propE (PG v ((e,l,prop,v1,v2):xs) p) k proper
     | otherwise = propE (PG v xs p) k proper
     where
         x = propE (PG v xs p) (k-1) proper
+
 ------------------------------------------------------------------
+------------------------------ KHOPS -----------------------------
 
------------------------------- 4 ---------------------------------
+{-- Itera sobre tots els veins del vèrtex recursivament i aquells en els que arriba
+    en k passos i cumpleixen la funció f són afegits a la llista. --}
 findHopsVertices::PG->Vertices->Int->Vertex->Property->(Val->Val->Bool)->Val->[Vertex]->[(Vertex,Label,Val)]
-
--- Base cases, we cannot reach any further so we return []
 findHopsVertices pg (vPG,l,prop,[]) _ _ _ _ _ _ = []
 
 findHopsVertices pg (vPG,l,prop,((v2,e1):as)) 0 v p f x vl
@@ -326,7 +366,9 @@ findHopsVertices pg (vPG,l,prop,((v2,e1):as)) k v p f x vl
         z = findHopsVertices pg (vPG,l,prop,as) k v p f x vl
         y = findHopsVertices pg (findVertice pg v2) (k-1) v p f x (vl++[vPG])
 
--- Retorna una llista amb vèrtex, etiqueta i Value de tots aquells vèrtex
+{-- Retorna una llista amb vèrtex, etiqueta i Value de tots aquells vèrtex que 
+    cumpleixin amb la funció f i que es s'arribi a ells amb k passos desde el 
+    vèrtex v. --}
 kHops :: PG -> Int -> Vertex -> Property -> (Val -> Val -> Bool) -> Val -> [(Vertex,Label,Val)]
 kHops pg k v p f x = findHopsVertices pg (findVertice pg v) k v p f x []
 
@@ -356,6 +398,7 @@ existAVertex [] _ = False
 existAVertex (x:xs) v
     | x == v = True
     | otherwise = existAVertex xs v
+
 ------------------------------------------------------------------
 ---------------------------- REACHABLE ---------------------------
 
@@ -384,6 +427,7 @@ getELabel (PG _ [] _) _ = []
 getELabel (PG v ((e,l,prop,v1,v2):es) p) e1
     | e1 == e = l
     | otherwise = getELabel (PG v es p) e1
+
 ------------------------------------------------------------------
 ------------------------------- MAIN -----------------------------
 
