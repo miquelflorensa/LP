@@ -189,11 +189,11 @@ addLabels pg [] = pg
 addLabels pg (x:xs) = addLabels (createLabels pg (words x)) xs
 
 -- Vertex Labels 
-existsVLabel :: [Vertices] -> Vertex -> Label -> Bool
-existsVLabel [] v1 l1 = False
-existsVLabel ((v,l,prop,a):xs) v1 l1
-    | v == v1 && l == l1 = True
-    | otherwise = existsVLabel xs v1 l1
+existsVLabel :: [Vertices] -> Vertex -> Bool
+existsVLabel [] v1 = False
+existsVLabel ((v,l,prop,a):xs) v1
+    | v == v1 && l /= [] = True
+    | otherwise = existsVLabel xs v1
 
 addVLabel :: Vertices -> Vertex -> Label -> Vertices
 addVLabel (v,l,prop,a) v1 l1
@@ -202,7 +202,7 @@ addVLabel (v,l,prop,a) v1 l1
  
 defVLabel :: PG -> Vertex -> Label -> PG 
 defVLabel (PG v e p) v1 l 
-    | existsVLabel v v1 l == True = error "vertex has already a label"
+    | existsVLabel v v1 = error "vertex has already a label"
     | existsVertex v v1 == False = PG (v ++ [(v1,l,[],[])]) e p
     | otherwise = PG v' e p
     where 
@@ -215,11 +215,11 @@ existsEdge ((e,l,prop,v1,v2):xs) e1
     | e == e1 = True
     | otherwise = existsEdge xs e1
 
-existsELabel :: [Edges] -> Edge -> Label -> Bool
-existsELabel [] e1 l1 = False
-existsELabel ((e,l,prop,v1,v2):xs) e1 l1
-    | e == e1 && l == l1 = True
-    | otherwise = existsELabel xs e1 l1
+existsELabel :: [Edges] -> Edge -> Bool
+existsELabel [] e1 = False
+existsELabel ((e,l,prop,v1,v2):xs) e1
+    | e == e1 && l /= [] = True
+    | otherwise = existsELabel xs e1 
 
 addELabel :: Edges -> Edge -> Label -> Edges
 addELabel (e,l,prop,v1,v2) e1 l1
@@ -228,7 +228,7 @@ addELabel (e,l,prop,v1,v2) e1 l1
  
 defELabel :: PG -> Edge -> Label -> PG
 defELabel (PG v e p) e1 l 
-    | existsELabel e e1 l == True = error "edge has already a label"
+    | existsELabel e e1 = error "edge has already a label"
     | existsEdge e e1 == False = PG v (e ++ [(e1,l,[],[],[])]) p
     | otherwise = PG v e' p
     where 
@@ -326,36 +326,43 @@ findHopsVertices pg (vPG,l,prop,((v2,e1):as)) k v p f x vl
         z = findHopsVertices pg (vPG,l,prop,as) k v p f x vl
         y = findHopsVertices pg (findVertice pg v2) (k-1) v p f x (vl++[vPG])
 
-
+-- Retorna una llista amb vèrtex, etiqueta i Value de tots aquells vèrtex
 kHops :: PG -> Int -> Vertex -> Property -> (Val -> Val -> Bool) -> Val -> [(Vertex,Label,Val)]
 kHops pg k v p f x = findHopsVertices pg (findVertice pg v) k v p f x []
 
+-- Retorna True si no existeix cap propietat p en la llista de Propietat x Value
 propNotExist :: [Prop] -> Property -> Bool
 propNotExist [] _ = True
 propNotExist ((x,y):xs) p 
     | x == p = False
     | otherwise = propNotExist xs p
 
+-- Retorna el Value d'una propietat
 getProp :: [Prop] -> Property -> Val 
 getProp ((x,y):xs) p 
     | x == p = y
     | otherwise = getProp xs p
 
+-- Donat un graf, retorna un Vertice (estructura del graf) amb el v = vèrtex
 findVertice :: PG -> Vertex -> Vertices
 findVertice (PG [] e p) _ = ("","",[],[])
 findVertice (PG ((v,l,prop,a):xs) e p) v1
     | v1 == v = (v,l,prop,a)
     | otherwise = findVertice (PG xs e p) v1  
 
+-- Retorna True si existeix un vertex en una llista de vèrtex 
 existAVertex :: [Vertex] -> Vertex -> Bool
 existAVertex [] _ = False
 existAVertex (x:xs) v
     | x == v = True
     | otherwise = existAVertex xs v
 ------------------------------------------------------------------
+---------------------------- REACHABLE ---------------------------
 
------------------------------- 5 ---------------------------------
-
+{-- Funció auxiliar que afegeix una llista dels vèrtex visitats.
+    La funció va iterant sobre tots el vètrex adjacents a v1,
+    i si en troba un amb el v2 i amb un camí amn la label retorna
+    cert. --}
 reachableAux :: PG -> Vertices -> Vertex -> Label -> [Vertex] -> Bool
 reachableAux _ (v1,l1,prop,[]) _ _ _ = False
 reachableAux pg (v1,l1,prop,((v2,e1):as)) v l vl
@@ -366,19 +373,35 @@ reachableAux pg (v1,l1,prop,((v2,e1):as)) v l vl
         x = reachableAux pg (findVertice pg v2) v l (vl ++ [v1])
         y = reachableAux pg (v1,l1,prop,as) v l vl
 
-
+{-- Retorna Ture si existeix un camí de un vèrtex a un altre on totes les
+    arestes tenen la etiqueta Label --}
 reachable :: PG -> Vertex -> Vertex -> Label -> Bool
 reachable pg v1 v2 l = reachableAux pg (findVertice pg v1) v2 l [] 
 
-
+-- Retorna la etiqueta de una aresta
 getELabel :: PG -> Edge -> Label
 getELabel (PG _ [] _) _ = []
 getELabel (PG v ((e,l,prop,v1,v2):es) p) e1
     | e1 == e = l
     | otherwise = getELabel (PG v es p) e1
-
 ------------------------------------------------------------------
+------------------------------- MAIN -----------------------------
 
+-- Funció que printa una llista de String Value
+printStringVal :: [(String,Val)] -> IO()
+printStringVal [] = return()
+printStringVal (x:xs) = do 
+    putStrLn $ show x 
+    printStringVal xs
+
+-- Funció que printa una llista de String String Value
+printStringStringVal :: [(String,String,Val)] -> IO()
+printStringStringVal [] = return()
+printStringStringVal (x:xs) = do 
+    putStrLn $ show x 
+    printStringStringVal xs
+
+-- Funció que pregunta els paràmetres de les funcions i imprimeix els resultats
 doAction :: PG -> String -> IO()
 doAction _ "0" = return ()
 
@@ -389,7 +412,7 @@ doAction pg "1" = do
     showGraph pg
     putStrLn " "
     putStrLn ("Les propietats del element "++vertexEdge++" son:")
-    print sigmaPrima
+    printStringVal sigmaPrima
     putStrLn " "
     loop pg
 
@@ -401,18 +424,127 @@ doAction pg "2" = do
     prop <- getLine
     showGraph pg
     putStrLn " "
-    putStrLn ("Els vertex que compleixen la propietat son:")
+    putStrLn ("Els vertex que tenen la propietat "++prop++" son:")
     let proV = propV pg k prop
-    print proV
+    printStringVal proV
     putStrLn " "
     loop pg
 
-doAction _ "3" = return ()
+doAction pg "3" = do
+    putStrLn "Escriu quants elements vols:"
+    nat <- getLine
+    let k = read nat :: Int
+    putStrLn "Escriu la propietat:"
+    prop <- getLine
+    showGraph pg
+    putStrLn " "
+    putStrLn ("Els edges que tenen la propietat "++prop++" son:")
+    let proE = propE pg k prop
+    printStringVal proE
+    putStrLn " "
+    loop pg
 
-doAction _ "4" = return ()
+doAction pg "4" = do
+    putStrLn "Escriu quants salts vols:"
+    nat <- getLine
+    let k = read nat :: Int
+    putStrLn "Escriu el vèrtex on vols arribar:"
+    vertex <- getLine
+    putStrLn "Escriu la propietat:"
+    propietat <- getLine
+    putStrLn "Suposem que la funció és d'igualtat (==)"
+    putStrLn "ja que no es pot llegir una funció per consola"
+    putStrLn "si es vol canviar d'ha de modificar el directament la linia 452 del codi"
+    putStrLn " "
+    putStrLn "Escriu el value que s'ha de complir:"
+    value <- getLine
+    let val = typeConverter pg propietat value
+    showGraph pg
+    putStrLn " "
+    putStrLn ("Els vertex als que arriba amb "++nat++" salts son:")
+    let khops = kHops pg k vertex propietat (==) val
+    printStringStringVal khops
+    putStrLn " "
+    loop pg
 
-doAction _ _ = return ()
+doAction pg "5" = do
+    putStrLn "Escriu desde quin vèrtex vols sortir:"
+    v1 <- getLine
+    putStrLn "Escriu el vèrtex on vols arribar:"
+    v2 <- getLine
+    putStrLn "Escriu la etiqueta qu han de tenir els camins:"
+    label <- getLine
+    showGraph pg
+    putStrLn " "
+    let reach = reachable pg v1 v2 label
+    print reach 
+    if (reach) then putStrLn ("SI es pot arribar a "++v2++" desde "++v1)
+        else putStrLn ("NO es pot arribar a "++v2++" desde "++v1)
+    putStrLn " "
+    loop pg
 
+
+doAction pg "6" = do
+    putStrLn "Escriu el nom de l'aresta:"
+    e <- getLine
+    putStrLn "Escriu el nom del vèrtex del que surt l'aresta:"
+    v1 <- getLine
+    putStrLn "Escriu el nom del vèrtex on arriba l'aresta:"
+    v2 <- getLine
+    let addE = addEdge pg e v1 v2
+    showGraph addE
+    putStrLn " "
+    loop addE
+
+doAction pg "7" = do
+    putStrLn "Escriu el nom del vèrtex:"
+    v <- getLine
+    putStrLn "Escriu el nom de la propietat:"
+    prop <- getLine
+    putStrLn "Escriu el valor de la propietat:"
+    value <- getLine
+    let defV = defVProp pg v [(prop,typeConverter pg prop value)]
+    showGraph defV
+    putStrLn " "
+    loop defV
+
+doAction pg "8" = do
+    putStrLn "Escriu el nom de la aresta:"
+    v <- getLine
+    putStrLn "Escriu el nom de la propietat:"
+    prop <- getLine
+    putStrLn "Escriu el valor de la propietat:"
+    value <- getLine
+    let defE = defEProp pg v [(prop,typeConverter pg prop value)]
+    showGraph defE
+    putStrLn " "
+    loop defE
+
+-- defVlabel
+doAction pg "9" = do
+    putStrLn "Escriu el nom del vèrtex:"
+    v <- getLine
+    putStrLn "Escriu el nom de la etiqueta:"
+    l <- getLine
+    let defVl = defVLabel pg v l
+    showGraph defVl
+    putStrLn " "
+    loop defVl
+
+-- defElabel
+doAction pg "10" = do
+    putStrLn "Escriu el nom de la aresta:"
+    v <- getLine
+    putStrLn "Escriu el nom de la etiqueta:"
+    l <- getLine
+    let defEl = defELabel pg v l
+    showGraph defEl
+    putStrLn " "
+    loop defEl
+
+doAction pg _ = loop pg
+
+-- loop principal del programa, on es poden executar totes les funcions del programa
 loop :: PG -> IO()
 loop pg = do
     putStrLn "Que vols fer?"
@@ -421,25 +553,30 @@ loop pg = do
     putStrLn "3. propE"
     putStrLn "4. kHops"
     putStrLn "5. reachable"
+    putStrLn " "
+    putStrLn "6. addEdge"
+    putStrLn "7. defVProp"
+    putStrLn "8. defEProp"
+    putStrLn "9. defVlabel"
+    putStrLn "10.defElabel"    
+    putStrLn " "
     putStrLn "0. Sortir del programa"
+    putStrLn " "
     action <- getLine
     doAction pg action
     return ()
 
-
+-- main on es llegeixen els fitxers i es crida al script loop
 main = do
     putStrLn "Quin és el nom del fitxer Rho?"
-    --nomRho <- getLine
-    let nomRho = "rhoFile.pg"
+    nomRho <- getLine
     putStrLn "Quin és el nom del fitxer Lambda?"
-    --nomLambda <- getLine
-    let nomLambda = "lambdaFile.pg"
+    nomLambda <- getLine
     putStrLn "Quin és el nom del fitxer Sigma?"
-    --nomSigma <- getLine
-    let nomSigma = "sigmaFile.pg"
+    nomSigma <- getLine
     putStrLn "Quin és el nom del fitxer Prop?"
-    --nomProp <- getLine
-    let nomProp = "propFile.pg"
+    nomProp <- getLine
+    putStrLn " "
     rho <- readFile nomRho
     lmd <- readFile nomLambda
     sgm <- readFile nomSigma
@@ -447,4 +584,3 @@ main = do
     let pg = populate rho lmd sgm prop  
     loop pg
     return ()
-    
