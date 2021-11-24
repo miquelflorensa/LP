@@ -28,8 +28,11 @@ instance Show Val where
 
 data PG = PG [Vertices] [Edges] [TypeProperty]
     deriving (Show)
-
-
+{--
+instance Show PG where
+    show (PG [] e p) = []
+    show (PG ((v,l,prop,a):xs) e p) = show v ++ show (PG xs e p)
+    --}
 create :: PG
 create = PG [] [] []
 
@@ -60,7 +63,7 @@ addEdge (PG v e p) e1 v1 v2
     | otherwise = PG v' e' p
     where 
         v1' = v ++ [(v1,[],[],[(v2,e1)])] ++ [(v2,[],[],[])]
-        v2' = (map (\x -> addVertices x v2 "" "") v) ++ [(v1,[],[],[(v2,e1)])]
+        v2' = (map (\x -> addVertices x v2 [] []) v) ++ [(v1,[],[],[(v2,e1)])]
         v3' = (map (\x -> addVertices x v1 v2 e1) v) ++ [(v2,[],[],[])]
         e' = e ++ [(e1,[],[],v1,v2)]
         v' = map (\y -> addVertices y v2 [] []) (map (\x -> addVertices x v1 v2 e1) v)
@@ -110,8 +113,9 @@ getEdgeProp (e,l,((prop,value):xs),v1,v2) p
 
 intersect :: [Prop] -> [Prop] -> [Prop]
 intersect [] _ = []
-intersect (x:xs) l | elem x l = x : intersect xs l
-                   | otherwise = intersect xs l
+intersect (x:xs) l 
+    | elem x l = x : intersect xs l
+    | otherwise = intersect xs l
 
 existsProp :: [Prop] -> [Prop] -> Bool
 existsProp xs ys 
@@ -127,25 +131,26 @@ existProperty p ((x,y):xs)
     | otherwise = existProperty p xs
 
 searchType :: PG -> String -> String
-searchType (PG v e []) x = "String"
+searchType (PG v e []) x = ""
 searchType (PG v e ((x,y):xs)) z
     | x == z = y
     | otherwise = searchType (PG v e xs) z
 
-typeConverter :: PG -> String -> Val
-typeConverter pg x
+typeConverter :: PG -> String -> String -> Val
+typeConverter pg y x
     | ty == "Int" = ValI (read x ::Int)
     | ty == "Double" = ValD (read x ::Double)
     | ty == "String" = ValS x
     | ty == "Bool" = ValB (read x ::Bool)
-    | otherwise = ValDa x
+    | ty == "Date" = ValDa x
+    | otherwise = ValS "_|_"
     where 
-        ty = searchType pg x
+        ty = searchType pg y
 
 createProp :: PG -> [String] -> PG
 createProp (PG v e p) (x:y:z:ys)
-    | existsVertex v x == True = defVProp (PG v e p) x [(y,typeConverter (PG v e p) z)] 
-    | otherwise = defEProp (PG v e p) x [(y,typeConverter (PG v e p) z)]
+    | existsVertex v x = defVProp (PG v e p) x [(y,typeConverter (PG v e p) y z)] 
+    | otherwise = defEProp (PG v e p) x [(y,typeConverter (PG v e p) y z)]
 
 addProps :: PG -> [String] -> PG
 addProps pg [] = pg
@@ -239,14 +244,14 @@ prop2String ((p,v):xs) = "("++p++","++show v++"),"++prop2String xs
 
 
 printEdge :: Edges -> IO()
-printEdge (e,l,prop,v1,v2) = print $ x ++ y ++ z
+printEdge (e,l,prop,v1,v2) = putStrLn $ x ++ y ++ z
     where 
     x = "("++v1++")"++" - "++e++"["++l++"]"++" -> "++"("++v2++"){"
     y = filter (not . (`elem` "\"\'")) (prop2String prop)
     z = "}"
 
 printVertex :: Vertices -> IO()
-printVertex (v1,l,prop,a) = print $ x ++ y ++ z
+printVertex (v1,l,prop,a) = putStrLn $ x ++ y ++ z
     where 
     x = v1++"["++l++"]"++"{" 
     y = filter (not . (`elem` "\"\'")) (prop2String prop)
@@ -308,30 +313,36 @@ findHopsVertices::PG->Vertices->Int->Vertex->Property->(Val->Val->Bool)->Val->[V
 findHopsVertices pg (vPG,l,prop,[]) _ _ _ _ _ _ = []
 
 findHopsVertices pg (vPG,l,prop,((v2,e1):as)) 0 v p f x vl
-    | existAVertex vl v2 = []
-    | vPG == v && f x y = [(vPG,l,y)] ++ z
-    | otherwise = z
+    | propNotExist prop p = []
+    | f x y = [(vPG,l,y)] 
+    | otherwise = []
     where
-        y = getProp prop p
-        z = findHopsVertices pg (vPG,l,prop,as) 0 v p f x vl 
-
+        y = getProp prop p 
+        
 findHopsVertices pg (vPG,l,prop,((v2,e1):as)) k v p f x vl 
     | existAVertex vl v2 = []
     | otherwise = y ++ z
     where
-        y = findHopsVertices pg (findVertice pg v2) (k-1) v p f x (vl++[vPG]) 
-        z = findHopsVertices pg (vPG,l,prop,as) k v p f x vl 
+        z = findHopsVertices pg (vPG,l,prop,as) k v p f x vl
+        y = findHopsVertices pg (findVertice pg v2) (k-1) v p f x (vl++[vPG])
 
 
 kHops :: PG -> Int -> Vertex -> Property -> (Val -> Val -> Bool) -> Val -> [(Vertex,Label,Val)]
 kHops pg k v p f x = findHopsVertices pg (findVertice pg v) k v p f x []
 
-getProp :: [Prop] -> Property -> Val
+propNotExist :: [Prop] -> Property -> Bool
+propNotExist [] _ = True
+propNotExist ((x,y):xs) p 
+    | x == p = False
+    | otherwise = propNotExist xs p
+
+getProp :: [Prop] -> Property -> Val 
 getProp ((x,y):xs) p 
     | x == p = y
     | otherwise = getProp xs p
 
 findVertice :: PG -> Vertex -> Vertices
+findVertice (PG [] e p) _ = ("","",[],[])
 findVertice (PG ((v,l,prop,a):xs) e p) v1
     | v1 == v = (v,l,prop,a)
     | otherwise = findVertice (PG xs e p) v1  
@@ -368,29 +379,45 @@ getELabel (PG v ((e,l,prop,v1,v2):es) p) e1
 
 ------------------------------------------------------------------
 
+doAction :: PG -> String -> IO()
+doAction pg "1" = do
+    showGraph pg
+    return ()
+
+doAction pg _ = return ()
+
+loop :: PG -> IO()
+loop pg = do
+    putStrLn "Que vols fer?"
+    putStrLn "1. Mostra el Graph"
+    putStrLn "2. Funció sigma prima"
+    putStrLn "3. Propietats Vertex"
+    putStrLn "0. Sortir del programa"
+    action <- getLine
+    doAction pg action
+    showGraph pg
+    return ()
+
 
 main = do
     putStrLn "Quin és el nom del fitxer Rho?"
-    nomRho <- getLine
+    --nomRho <- getLine
+    let nomRho = "rhoFile.pg"
     putStrLn "Quin és el nom del fitxer Lambda?"
-    nomLambda <- getLine
+    --nomLambda <- getLine
+    let nomLambda = "lambdaFile.pg"
     putStrLn "Quin és el nom del fitxer Sigma?"
-    nomSigma <- getLine
+    --nomSigma <- getLine
+    let nomSigma = "sigmaFile.pg"
     putStrLn "Quin és el nom del fitxer Prop?"
-    nomProp <- getLine
+    --nomProp <- getLine
+    let nomProp = "propFile.pg"
     rho <- readFile nomRho
     lmd <- readFile nomLambda
     sgm <- readFile nomSigma
     prop <- readFile nomProp
-    let pg = populate rho lmd sgm prop   
-    putStrLn "Que vols fer?"
-    putStrLn "0. Mostra el Graph"
-    putStrLn "1. Funció sigma prima"
-    putStrLn "2. Propietats Vertex"
-    action <- getLine
+    let pg = populate rho lmd sgm prop  
     showGraph pg
-    --let khops = kHops pg 3 "n3" "lastName" (Val == Val) "Blanco"
-    let reach = reachable pg "n1" "n2" "has"
-    print reach
+    loop pg
     return ()
     
