@@ -6,14 +6,16 @@ data Val = ValI Int | ValD Double | ValS String | ValB Bool | ValDa Date
 type Vertex = String
 type Edge = String
 type Label = String
-type Prop = (String,Val)
+type Property = String
+type VertexVal = (Vertex,Val)
+type Prop = (Property,Val)
 
 -- NameVertex, Label, List of properties, list of adjacent vertex
-type Vertices = (Vertex,String,[Prop],[(Vertex,Edge)])
+type Vertices = (Vertex,Label,[Prop],[(Vertex,Edge)])
 
 -- NameEdge, Label, List of properties, vertex 1, vertex 2
 -- the direction of the edge is vertex 1 -> vertex 2
-type Edges = (Edge,String,[Prop],Vertex,Vertex)
+type Edges = (Edge,Label,[Prop],Vertex,Vertex)
 type TypeProperty = (String,String)
 
 instance Show Val where
@@ -81,12 +83,54 @@ addValue (PG v e p) prop typeProp = PG v e (p ++ [(prop,typeProp)])
 
 ------------------------ PROPERTIES ------------------------------
 
+getVProps :: [Vertices] -> Vertex -> [Prop]
+getVProps [] _ = []
+getVProps ((v,l,prop,a):xs) v1
+    | v == v1 = prop
+    | otherwise = getVProps xs v1
+
+getEProps :: [Edges] -> Edge -> [Prop]
+getEProps [] _ = []
+getEProps ((e,l,prop,v1,v2):xs) e1
+    | e == e1 = prop
+    | otherwise = getEProps xs e1
+
+
+getVertexProp :: Vertices -> Property -> [(Vertex,Val)]
+getVertexProp (v,l,[],a) _ = []
+getVertexProp (v,l,((prop,value):xs),a) p
+    | prop == p = [(v,value)]
+    | otherwise = getVertexProp (v,l,xs,a) p
+
+getEdgeProp :: Edges -> Property -> [(Edge,Val)]
+getEdgeProp (e,l,[],v1,v2) _ = []
+getEdgeProp (e,l,((prop,value):xs),v1,v2) p
+    | prop == p = [(e,value)]
+    | otherwise = getEdgeProp (e,l,xs,v1,v2) p
+
+intersect :: [Prop] -> [Prop] -> [Prop]
+intersect [] _ = []
+intersect (x:xs) l | elem x l = x : intersect xs l
+                   | otherwise = intersect xs l
+
+existsProp :: [Prop] -> [Prop] -> Bool
+existsProp xs ys 
+    | x == [] = False
+    | otherwise = True
+    where
+        x = intersect xs ys
+
+existProperty :: Property -> [Prop] -> Bool
+existProperty _ [] = False
+existProperty p ((x,y):xs) 
+    | p == x = True
+    | otherwise = existProperty p xs
+
 searchType :: PG -> String -> String
 searchType (PG v e []) x = "String"
 searchType (PG v e ((x,y):xs)) z
     | x == z = y
     | otherwise = searchType (PG v e xs) z
-
 
 typeConverter :: PG -> String -> Val
 typeConverter pg x
@@ -109,7 +153,8 @@ addProps pg (x:xs) = addProps (createProp pg (words x)) xs
 
 addVProp :: Vertices -> Vertex -> [Prop] -> Vertices
 addVProp (v,l,prop,a) v1 x 
-    | v == v1 = (v,l,(prop ++ x),a)
+    | v == v1 && existsProp prop x = error "this vertex has already the property"
+    | v == v1 && existsProp prop x == False = (v,l,(prop ++ x),a)
     | otherwise = (v,l,prop,a)
 
 defVProp :: PG -> Vertex -> [Prop] -> PG
@@ -118,7 +163,8 @@ defVProp (PG v e p) v1 prop = PG v' e p where
 
 addEProp :: Edges -> Edge -> [Prop] -> Edges
 addEProp (e,l,prop,v1,v2) e1 x 
-    | e == e1 = (e,l,(prop ++ x),v1,v2)
+    | e == e1 && existsProp prop x = error "this edge has already the property"
+    | e == e1 && existsProp prop x == False = (e,l,(prop ++ x),v1,v2)
     | otherwise = (e,l,prop,v1,v2)
 
 defEProp :: PG -> Edge -> [Prop] -> PG
@@ -185,6 +231,7 @@ defELabel (PG v e p) e1 l
 ------------------------------------------------------------------
 
 ------------------------ SHOW GRAPH ------------------------------
+
 prop2String :: [Prop] -> String
 prop2String [] = []
 prop2String [(p,v)] = "("++p++","++show v++")"
@@ -222,14 +269,63 @@ populate rho lmd sgm prop = pg
     edg = addEdges (create) (lines rho)
 ------------------------------------------------------------------
 
--------------- QUERING AGAINS PROPERTY GRAPHS --------------------
+-------------- QUERING AGAINST PROPERTY GRAPHS -------------------
+
+------------------------------ 1 ---------------------------------
+sigma' :: PG -> String -> [Prop]
+sigma' (PG [] [] _) _ = []
+sigma' (PG v e _) s
+    | existsVertex v s = getVProps v s
+    | otherwise = getEProps e s
+------------------------------------------------------------------
+
+------------------------------ 2 ---------------------------------
+propV :: PG -> Int -> Property -> [(Vertex,Val)]
+propV _ 0 _ = []
+propV (PG [] _ _) _ _ = []
+propV (PG ((v,l,prop,a):xs) e p) k proper
+    | existProperty proper prop = (getVertexProp (v,l,prop,a) proper)++x
+    | otherwise = propV (PG xs e p) k proper
+    where
+        x = propV (PG xs e p) (k-1) proper
+------------------------------------------------------------------
+
+------------------------------ 3 ---------------------------------
+propE :: PG -> Int -> Property -> [(Edge,Val)]
+propE _ 0 _ = []
+propE (PG _ [] _) _ _ = []
+propE (PG v ((e,l,prop,v1,v2):xs) p) k proper
+    | existProperty proper prop = (getEdgeProp (e,l,prop,v1,v2) proper)++x
+    | otherwise = propE (PG v xs p) k proper
+    where
+        x = propE (PG v xs p) (k-1) proper
+------------------------------------------------------------------
+
+------------------------------ 4 ---------------------------------
+findHopsVertices :: PG->Int->Vertex->Property->(Val->Val->Bool)->Val->[Vertex]->[(Vertex,Label,Val)]
+findHopsVertices (PG [] _ _) _ _ _ _ _ _ = []
+findHopsVertices (PG ((vPG,l,prop,[]):xs) _ _) 0 _ _ _ _ _ = []
+
+-- Here, we keep in the same vertex, so we don't add vPG to vl
+findHopsVertices (PG ((vPG,l,prop,((a):as)):xs) ePG pPG) 0 v p f x vl 
+    | vPG == v && f x y = [(vPG,l,y)] ++ z
+    | otherwise = 
+    where 
+        y = getProp prop p
+        z = (PG ((vPG,l,prop,as):xs) ePG pPG) 0 v p f x vl
+findHopsVertices (PG ((vPG,l,prop,[]):xs) _ _) _ _ _ _ _ _ = []
+findHopsVertices (PG ((vPG,l,prop,((a):as)):xs) ePG pPG) k v p f x vl
 
 
-sigma' ::
+kHops :: PG -> Int -> Vertex -> Property -> (Val -> Val -> Bool) -> Val -> [(Vertex,Label,Val)]
+kHops (PG vPG ePG pPG) k v p f x = findHopsVertices
 
-
-
-
+getProp :: [Prop] -> Property -> Value
+getProp [] _ = []
+getProp ((x,y):xs) p 
+    | x == p = y
+    | getProp xs p
+------------------------------------------------------------------
 
 main = do
     --putstrl Demana el nom dels fixers a introduir. A FER
