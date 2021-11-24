@@ -302,29 +302,70 @@ propE (PG v ((e,l,prop,v1,v2):xs) p) k proper
 ------------------------------------------------------------------
 
 ------------------------------ 4 ---------------------------------
-findHopsVertices :: PG->Int->Vertex->Property->(Val->Val->Bool)->Val->[Vertex]->[(Vertex,Label,Val)]
-findHopsVertices (PG [] _ _) _ _ _ _ _ _ = []
-findHopsVertices (PG ((vPG,l,prop,[]):xs) _ _) 0 _ _ _ _ _ = []
+findHopsVertices::PG->Vertices->Int->Vertex->Property->(Val->Val->Bool)->Val->[Vertex]->[(Vertex,Label,Val)]
 
--- Here, we keep in the same vertex, so we don't add vPG to vl
-findHopsVertices (PG ((vPG,l,prop,((a):as)):xs) ePG pPG) 0 v p f x vl 
+-- Base cases, we cannot reach any further so we return []
+findHopsVertices pg (vPG,l,prop,[]) _ _ _ _ _ _ = []
+
+findHopsVertices pg (vPG,l,prop,((v2,e1):as)) 0 v p f x vl
+    | existAVertex vl v2 = []
     | vPG == v && f x y = [(vPG,l,y)] ++ z
-    | otherwise = 
-    where 
+    | otherwise = z
+    where
         y = getProp prop p
-        z = (PG ((vPG,l,prop,as):xs) ePG pPG) 0 v p f x vl
-findHopsVertices (PG ((vPG,l,prop,[]):xs) _ _) _ _ _ _ _ _ = []
-findHopsVertices (PG ((vPG,l,prop,((a):as)):xs) ePG pPG) k v p f x vl
+        z = findHopsVertices pg (vPG,l,prop,as) 0 v p f x vl 
+
+findHopsVertices pg (vPG,l,prop,((v2,e1):as)) k v p f x vl 
+    | existAVertex vl v2 = []
+    | otherwise = y ++ z
+    where
+        y = findHopsVertices pg (findVertice pg v2) (k-1) v p f x (vl++[vPG]) 
+        z = findHopsVertices pg (vPG,l,prop,as) k v p f x vl 
 
 
 kHops :: PG -> Int -> Vertex -> Property -> (Val -> Val -> Bool) -> Val -> [(Vertex,Label,Val)]
-kHops (PG vPG ePG pPG) k v p f x = findHopsVertices
+kHops pg k v p f x = findHopsVertices pg (findVertice pg v) k v p f x []
 
-getProp :: [Prop] -> Property -> Value
-getProp [] _ = []
+getProp :: [Prop] -> Property -> Val
 getProp ((x,y):xs) p 
     | x == p = y
-    | getProp xs p
+    | otherwise = getProp xs p
+
+findVertice :: PG -> Vertex -> Vertices
+findVertice (PG ((v,l,prop,a):xs) e p) v1
+    | v1 == v = (v,l,prop,a)
+    | otherwise = findVertice (PG xs e p) v1  
+
+existAVertex :: [Vertex] -> Vertex -> Bool
+existAVertex [] _ = False
+existAVertex (x:xs) v
+    | x == v = True
+    | otherwise = existAVertex xs v
+------------------------------------------------------------------
+
+------------------------------ 5 ---------------------------------
+
+reachableAux :: PG -> Vertices -> Vertex -> Label -> [Vertex] -> Bool
+reachableAux _ (v1,l1,prop,[]) _ _ _ = False
+reachableAux pg (v1,l1,prop,((v2,e1):as)) v l vl
+    | existAVertex vl v2 == False && v1 == v = True
+    | existAVertex vl v2 == False && l == getELabel pg e1 = x || y
+    | otherwise = y
+    where
+        x = reachableAux pg (findVertice pg v2) v l (vl ++ [v1])
+        y = reachableAux pg (v1,l1,prop,as) v l vl
+
+
+reachable :: PG -> Vertex -> Vertex -> Label -> Bool
+reachable pg v1 v2 l = reachableAux pg (findVertice pg v1) v2 l [] 
+
+
+getELabel :: PG -> Edge -> Label
+getELabel (PG _ [] _) _ = []
+getELabel (PG v ((e,l,prop,v1,v2):es) p) e1
+    | e1 == e = l
+    | otherwise = getELabel (PG v es p) e1
+
 ------------------------------------------------------------------
 
 main = do
@@ -336,5 +377,8 @@ main = do
     prop <- readFile "propFile.pg"
     let pg = populate rho lmd sgm prop
     showGraph pg
+    --let khops = kHops pg 3 "n3" "lastName" (Val == Val) "Blanco"
+    let reach = reachable pg "n1" "n2" "has"
+    print reach
     return ()
     
