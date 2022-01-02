@@ -1,0 +1,20 @@
+void euclides(a, b) {
+    while (a <> b) {
+        if (a > b) {
+            a = a - b
+        } else {
+            b = b - a
+        }
+    }
+    write(a)
+}
+
+
+
+void main() {
+    write(54)
+    read(a)
+    read(b)
+    write(54)
+    euclides(a, b)
+}

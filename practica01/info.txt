@@ -1,0 +1,13 @@
+main = do
+    dt <- readFile "nom_arxiu"
+    
+fer servir words i lines
+
+showGraph
+instancia clase Show
+Per fer consultes dilluns > 10 o dijous < 13 al A5S108 i A5S102 respectivament 
+gerard.escudero@upc.edu
+
+
+
+type Edge = (String,String,String) com el TypeDef
