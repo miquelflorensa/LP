@@ -16,17 +16,29 @@ class Proces:
 
 class TreeVisitor(ExprVisitor):
 
-    def __init__(self):
+    def __init__(self, procesPrincipal='main', parametresPrincipals=[]):
         self.stackSimbols = []
         self.processos = {}
-
+        self.procesPrincipal = procesPrincipal
+        self.parametresPrincipals = parametresPrincipals
 
     def visitRoot(self, ctx):
         l = list(ctx.getChildren())
         for i in range(len(l)-1):
-            if self.visit(l[i]) != 'nothing':
-                print(self.visit(l[i]))
+            self.visit(l[i])
 
+
+    def visitProcediments(self, ctx):
+        l = list(ctx.getChildren())
+        for i in range(len(l)):
+            self.visit(l[i])
+        dictAux = {}
+        paraPrinc = self.processos[self.procesPrincipal].parametres
+        for i in range(len(paraPrinc)):
+            dictAux[paraPrinc[i]] = int(self.parametresPrincipals[i])
+
+        self.stackSimbols.append(dictAux)
+        return self.visit(self.processos[self.procesPrincipal].instancies)
 
     def visitProcediment(self, ctx):
         l = list(ctx.getChildren())
@@ -39,27 +51,46 @@ class TreeVisitor(ExprVisitor):
                 parametres.append(param)
             i += 1
             param = l[i].getText()
-        if nom == 'main':
-            dictAux = {}
-            self.stackSimbols.append(dictAux)
-            return self.visit(ctx.instancies())
-        else:
-            self.processos[nom] = Proces(nom, parametres, ctx.instancies())
-        return 'nothing'
+        self.processos[nom] = Proces(nom, parametres, ctx.instancies())
 
     def visitProc(self, ctx):
         l = list(ctx.getChildren())
         nom = l[0].getText()
         parametres = {}
-
-        for i in range(len(self.processos[nom].parametres)):
-            parametres[self.processos[nom].parametres[i]] = self.visit(l[i+2])
+        param = l[2].getText()
+        i = 2
+        j = 0
+        while param != ')':
+            if param != ',':
+                parametres[self.processos[nom].parametres[j]] = self.visit(l[i])
+                j += 1
+            i += 1
+            param = l[i].getText()
 
         self.stackSimbols.append(parametres)
         self.visit(self.processos[nom].instancies)
         self.stackSimbols.pop()
-        return 'nothing'
 
+    def visitTaulesArray(self, ctx):
+        l = list(ctx.getChildren())
+        nom = l[2].getText()
+        n = int(self.visit(l[4]))
+        array = []
+        array = [0 for i in range(n)]
+        self.stackSimbols[-1][nom] = array
+
+    def visitTaulesSet(self, ctx):
+        l = list(ctx.getChildren())
+        nom = l[2].getText()
+        i = int(self.visit(l[4]))
+        x = int(self.visit(l[6]))
+        self.stackSimbols[-1][nom][i] = x
+
+    def visitTaulesGet(self, ctx):
+        l = list(ctx.getChildren())
+        nom = l[2].getText()
+        i = int(self.visit(l[4]))
+        return self.stackSimbols[-1][nom][i]
 
     def visitMod(self, ctx):
         l = list(ctx.getChildren())
@@ -90,6 +121,14 @@ class TreeVisitor(ExprVisitor):
         var = l[0].getText()
         return self.stackSimbols[-1][var]
 
+    def visitComent(self, ctx):
+        l = list(ctx.getChildren())
+        string = l[0].getText()
+        string = string[:-1]
+        string = string[1:]
+        return string
+
+
     # Visitador del condicional
     def visitCondicional(self, ctx):
         l = list(ctx.getChildren())
@@ -102,10 +141,8 @@ class TreeVisitor(ExprVisitor):
     def visitIteracioWhile(self, ctx):
         l = list(ctx.getChildren())
         while self.visit(l[2]) == 1:
-            if self.visit(l[5]) != 'nothing':
-                print(self.visit(l[5]))
+            self.visit(l[5])
 
-        return 'nothing'
 
     # Visitador per l'iteració amb for
     def visitIteracioFor(self, ctx):
@@ -113,11 +150,9 @@ class TreeVisitor(ExprVisitor):
         self.visit(l[2])
 
         while self.visit(l[4]) == 1:
-            if self.visit(l[9]) != 'nothing':
-                print(self.visit(l[9]))
+            self.visit(l[9])
             self.visit(l[6])
 
-        return 'nothing'
 
 
     #==================== COMPARADORS ===========================
@@ -170,7 +205,6 @@ class TreeVisitor(ExprVisitor):
         l = list(ctx.getChildren())
         var = l[0].getText()
         self.stackSimbols[-1][var] = self.visit(l[2])
-        return 'nothing'
 
     # Visitador que permet llegir del canal d'entrada estàndard
     def visitRead(self, ctx):
@@ -178,7 +212,6 @@ class TreeVisitor(ExprVisitor):
         var = l[2].getText()
         value = int(input())
         self.stackSimbols[-1][var] = value
-        return 'nothing'
 
     def visitWrite(self, ctx):
         l = list(ctx.getChildren())
@@ -186,4 +219,3 @@ class TreeVisitor(ExprVisitor):
             if i%2 == 0:
                 print(self.visit(l[i]), end =" ")
         print()
-        return 'nothing'
