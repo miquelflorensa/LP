@@ -50,4 +50,4 @@ D'altra banda, el beatificador pretty-printer és capaç d'agafar un codi malest
 
 ##
 Miquel Florensa
-miquel.florensa@estudiantat.upc.edu
++ miquel.florensa@estudiantat.upc.edu
