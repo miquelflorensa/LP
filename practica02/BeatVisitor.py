@@ -1,13 +1,13 @@
 from termcolor import colored
 if __name__ is not None and "." in __name__:
-    from .ExprParser import ExprParser
-    from .ExprVisitor import ExprVisitor
+    from .llullParser import llullParser
+    from .llullVisitor import llullVisitor
 else:
-    from ExprParser import ExprParser
-    from ExprVisitor import ExprVisitor
+    from llullParser import llullParser
+    from llullVisitor import llullVisitor
 
 
-class BeatVisitor(ExprVisitor):
+class BeatVisitor(llullVisitor):
 
     def __init__(self):
         self.forActive = 0

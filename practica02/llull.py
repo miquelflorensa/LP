@@ -1,13 +1,13 @@
 from antlr4 import *
-from ExprLexer import ExprLexer
-from ExprParser import ExprParser
+from llullLexer import llullLexer
+from llullParser import llullParser
 from LlullVisitor import LlullVisitor
 import sys
 
 input_stream = FileStream(sys.argv[1], encoding='utf-8')
-lexer = ExprLexer(input_stream)
+lexer = llullLexer(input_stream)
 token_stream = CommonTokenStream(lexer)
-parser = ExprParser(token_stream)
+parser = llullParser(token_stream)
 tree = parser.root()
 
 # Depenent de la mida de l'entrada passem o no paràmetres a LlullVisitor

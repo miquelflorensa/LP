@@ -1,9 +1,9 @@
 if __name__ is not None and "." in __name__:
-    from .ExprParser import ExprParser
-    from .ExprVisitor import ExprVisitor
+    from .llullParser import llullParser
+    from .llullVisitor import llullVisitor
 else:
-    from ExprParser import ExprParser
-    from ExprVisitor import ExprVisitor
+    from llullParser import llullParser
+    from llullVisitor import llullVisitor
 
 
 # Definció d'un procés
@@ -21,7 +21,7 @@ class LlullExcepcio(Exception):
 
 
 # Definció de la classe Visitor de Llull
-class LlullVisitor(ExprVisitor):
+class LlullVisitor(llullVisitor):
     # Constructor de Visitor de Llull on per defecte el procés principal
     # és main i els parametres principals és una llista buida
     def __init__(self, procesPrincipal='main', parametresPrincipals=[]):
