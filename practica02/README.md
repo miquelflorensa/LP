@@ -47,7 +47,3 @@ A més aquest intèrpret compte amb detecció de errors, això si, errors molt b
 
 
 D'altra banda, el beatificador pretty-printer és capaç d'agafar un codi malestructurat d'un arxiu, i imprimir-lo pel canal estàndard amb la indentació i espais correctes i amb uns colors determinats.
-
-##
-Miquel Florensa
-+ miquel.florensa@estudiantat.upc.edu
