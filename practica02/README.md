@@ -46,4 +46,8 @@ L'intèrpret de llull és capaç de definir i executar procecdiments (no funcion
 A més aquest intèrpret compte amb detecció de errors, això si, errors molt bàsics com divisió per zero o nombre de paràmetres per invocar un procediment incorrecte.
 
 
-D'altra banda, el beatificador pretty-printer és capaç de agafar un codi malestructurat d'un arxiu, i imprimir-lo pel canal estàndard amb la indentació i espais correctes i amb uns colors determinats.
+D'altra banda, el beatificador pretty-printer és capaç d'agafar un codi malestructurat d'un arxiu, i imprimir-lo pel canal estàndard amb la indentació i espais correctes i amb uns colors determinats.
+
+##
+Miquel Florensa
+miquel.florensa@estudiantat.upc.edu
